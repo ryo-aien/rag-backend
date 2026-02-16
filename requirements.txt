@@ -1,0 +1,12 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+langchain==0.3.14
+langchain-openai==0.3.0
+langchain-chroma==0.2.2
+langchain-community==0.3.14
+chromadb==0.6.3
+psycopg2-binary==2.9.10
+python-multipart==0.0.20
+sse-starlette==2.2.1
+python-dotenv==1.0.1
+pypdf==5.1.0
