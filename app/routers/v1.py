@@ -6,9 +6,10 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile
 from sse_starlette.sse import EventSourceResponse
 
 from app.core.config import settings
-from app.core.indexing import LOADER_MAP, run_indexing
+from app.core.indexing import LOADER_MAP, delete_document, run_indexing
 from app.core.rag import generate_answer_stream
 from app.models.schemas import (
+    DeleteResponse,
     DocumentInfo,
     DocumentListResponse,
     IndexRequest,
@@ -38,6 +39,7 @@ async def list_documents():
                 filename=file_path.name,
                 size_bytes=stat.st_size,
                 updated_at=datetime.fromtimestamp(stat.st_mtime),
+                file_type=file_path.suffix.lower(),
             )
         )
     return DocumentListResponse(documents=documents)
@@ -62,6 +64,32 @@ async def index_documents(request: IndexRequest, background_tasks: BackgroundTas
     return IndexResponse(
         status="accepted",
         message="Indexing started in background",
+    )
+
+
+@router.delete("/documents/{filename}", response_model=DeleteResponse)
+async def delete_document_endpoint(filename: str):
+    data_dir = Path(settings.data_dir)
+    file_path = data_dir / filename
+
+    # パストラバーサル防止
+    if file_path.resolve().parent != data_dir.resolve():
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"File not found: {filename}")
+
+    try:
+        result = delete_document(filename)
+    except Exception as e:
+        logger.exception("Failed to delete document: %s", filename)
+        raise HTTPException(status_code=500, detail=f"Delete failed: {e}") from e
+
+    return DeleteResponse(
+        status="success",
+        filename=filename,
+        deleted_vectors=result["deleted_vectors"],
+        deleted_records=result["deleted_records"],
     )
 
 

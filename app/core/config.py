@@ -22,6 +22,9 @@ class Settings:
 
     data_dir: str = field(default_factory=lambda: os.getenv("DATA_DIR", "./data"))
 
+    # エンベディングプロバイダー: "open" (text-embedding-3-small) または "openai" (OpenAIEmbeddingsデフォルト)
+    embedding_provider: str = field(default_factory=lambda: os.getenv("EMBEDDING_PROVIDER", "open"))
+
     record_manager_namespace: str = "chroma/rag_documents"
 
     @property

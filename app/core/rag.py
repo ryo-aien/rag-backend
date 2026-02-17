@@ -4,9 +4,10 @@ from collections.abc import AsyncIterator
 import chromadb
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_openai import ChatOpenAI
 
 from app.core.config import settings
+from app.core.indexing import _get_embeddings
 
 logger = logging.getLogger(__name__)
 
@@ -21,15 +22,17 @@ SYSTEM_PROMPT = """\
 
 
 def _get_vectorstore() -> Chroma:
+    """ChromaDBにHTTP接続し、ベクトルストアインスタンスを返す。"""
     client = chromadb.HttpClient(host=settings.chroma_host, port=int(settings.chroma_port))
     return Chroma(
         collection_name=settings.chroma_collection,
-        embedding_function=OpenAIEmbeddings(openai_api_key=settings.openai_api_key),
+        embedding_function=_get_embeddings(),
         client=client,
     )
 
 
 def build_chroma_filter(metadata_filter: dict | None) -> dict | None:
+    """メタデータ辞書をChromaDBのwhere句フォーマット($eq/$and)に変換する。"""
     if not metadata_filter:
         return None
 
@@ -42,6 +45,7 @@ def build_chroma_filter(metadata_filter: dict | None) -> dict | None:
 
 
 def retrieve_documents(question: str, k: int = 4, metadata_filter: dict | None = None) -> list[Document]:
+    """質問文をベクトル化し、ChromaDBから類似度の高いドキュメントをk件取得する。"""
     vectorstore = _get_vectorstore()
     where = build_chroma_filter(metadata_filter)
 
@@ -53,6 +57,7 @@ def retrieve_documents(question: str, k: int = 4, metadata_filter: dict | None =
 
 
 def _format_context(docs: list[Document]) -> str:
+    """ドキュメントリストをソース情報付きのコンテキスト文字列に整形する。"""
     parts = []
     for doc in docs:
         source = doc.metadata.get("source", "unknown")
@@ -66,6 +71,7 @@ async def generate_answer_stream(
     k: int = 4,
     metadata_filter: dict | None = None,
 ) -> AsyncIterator[str]:
+    """質問に対してRAG検索を行い、LLMの回答をストリーミングで逐次返す。"""
     try:
         docs = retrieve_documents(question, k, metadata_filter)
         context = _format_context(docs)

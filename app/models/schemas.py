@@ -28,7 +28,15 @@ class DocumentInfo(BaseModel):
     filename: str
     size_bytes: int
     updated_at: datetime
+    file_type: str
 
 
 class DocumentListResponse(BaseModel):
     documents: list[DocumentInfo]
+
+
+class DeleteResponse(BaseModel):
+    status: str
+    filename: str
+    deleted_vectors: int
+    deleted_records: int
